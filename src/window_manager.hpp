@@ -16,7 +16,6 @@
 #include <QObject>
 #include <QRegularExpression>
 #include <QString>
-
 #include <memory>
 #include <chrono>
 #include <unordered_map>
@@ -26,7 +25,7 @@ namespace KWin {
     class BorderRadius;
 }
 
-namespace BBDX {
+namespace SBDX {
 class BlurEffect;
 
 class WindowManager : public QObject {
@@ -40,10 +39,9 @@ public:
 
 private:
     // pointer to the owning BlurEffect instance
-    BBDX::BlurEffect *m_effect;
-
+    SBDX::BlurEffect *m_effect;
     // managed windows
-    std::unordered_map<const KWin::EffectWindow *, std::unique_ptr<BBDX::Window>> m_windows{};
+    std::unordered_map<const KWin::EffectWindow *, std::unique_ptr<SBDX::Window>> m_windows{};
 
     // docks seperate for maximized calculation
     std::unordered_set<const KWin::EffectWindow *> m_docks{};
@@ -52,7 +50,6 @@ private:
     QList<QString> m_windowClassesFixed{};
     QList<QRegularExpression> m_windowClassesRegex{};
     WindowClassMatchMode m_windowClassMatchMode{WindowClassMatchMode::Whitelist};
-
     // window/region types
     bool m_blurDecorations{false};
     bool m_blurDocks{false};
@@ -68,29 +65,27 @@ private:
     /**
      * Find a managed window, nullptr if not found
      */
-    BBDX::Window* findWindow(const KWin::EffectWindow *w) const;
-
+    SBDX::Window* findWindow(const KWin::EffectWindow *w) const;
     /**
-     * Collect BBDX Windows sorted by stackingOrder
+     * Collect SBDX Windows sorted by stackingOrder
      */
-    std::vector<BBDX::Window *> windowsByStackingOrder() const;
+    std::vector<SBDX::Window *> windowsByStackingOrder() const;
 
 public Q_SLOT:
     void slotWindowAdded(KWin::EffectWindow *w);
     void slotWindowDeleted(KWin::EffectWindow *w);
 
 public:
-    explicit WindowManager(BBDX::BlurEffect *effect);
+    explicit WindowManager(SBDX::BlurEffect *effect);
 
     /**
      * reconfigure from BlurConfig
      */
     void reconfigure();
-
     /**
      * Refresh maximized state of a window / of all windows
      */
-    void refreshMaximizedState(BBDX::Window *w) const;
+    void refreshMaximizedState(SBDX::Window *w) const;
     void refreshMaximizedStateAll() const;
 
     /**
@@ -100,10 +95,9 @@ public:
     bool blurDocks() const { return m_blurDocks; }
     bool blurMenus() const { return m_blurMenus; }
     qreal userBorderRadius() const { return m_userBorderRadius; }
-
     /**
      * Match an EffectWindow instance in the black/white list
-     * XXX: should this also be moved to BBDX::Window?
+     * XXX: should this also be moved to SBDX::Window?
      */
     bool shouldForceBlurWindowClass(const KWin::EffectWindow *w) const;
 
@@ -116,7 +110,6 @@ public:
      * emits the windowInvalidatedBlurCache signal
      */
     void invalidateBlurCache(KWin::EffectWindow *w, uint flags, const char *reason) const;
-
     /**
      * Set the "window is transformed" flag on a window
      * (scaled, translated or PAINT_WINDOW_TRANSFORMED set)
@@ -128,7 +121,6 @@ public:
      * even when PAINT_WINDOW_TRANSFORMED is set
      */
     bool windowShouldBlurWhileTransformed(const KWin::EffectWindow *w) const;
-
     /**
      * Check if this window is blurred in any way (requested or forced)
      */
@@ -137,11 +129,10 @@ public:
     /**
      * Get the final blur region for a window, set in content/frame.
      *
-     * Forwarded to BBDX::Window::getFinalBlurRegion() if w is managed
+     * Forwarded to SBDX::Window::getFinalBlurRegion() if w is managed
      * else does nothing.
      */
     void getFinalBlurRegion(const KWin::EffectWindow *w, std::optional<KWin::RegionF> &content, std::optional<KWin::RegionF> &frame) const;
-
     /**
      * Get effective border radius for requested window,
      * or empty if unmanaged
@@ -152,7 +143,6 @@ public:
      * Get effective blur opacity for requested window
      */
     qreal getEffectiveBlurOpacity(const KWin::EffectWindow *w, KWin::WindowPaintData &data) const;
-
     /**
      * Check if the provided window's blur region is fully covered by
      * the frame geometry of other windows
@@ -167,9 +157,8 @@ public:
     /**
      * Flush all caches of a window
      */
-    void flushWindowCaches(BBDX::Window *window) const;
-    void flushWindowCachesFor(BBDX::Window *window, std::chrono::milliseconds duration) const;
-
+    void flushWindowCaches(SBDX::Window *window) const;
+    void flushWindowCachesFor(SBDX::Window *window, std::chrono::milliseconds duration) const;
     /**
      * Flush all caches of all windows
      */

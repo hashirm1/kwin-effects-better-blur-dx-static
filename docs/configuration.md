@@ -28,7 +28,7 @@ Adjusts how strong the contrast of the blurred background is.
 
 ### Force Contrast Parameters
 
-By default Better Blur DX respects when windows provide their
+By default Static Blur DX respects when windows provide their
 own contrast pass parameters (brightness, saturation, contrast).
 
 E.g. [Plasma surfaces provide their own values](https://invent.kde.org/plasma/libplasma/-/blob/v6.5.3/src/desktoptheme/breeze/plasmarc)
@@ -54,7 +54,7 @@ Window classes that should be force blurred (or excluded if `Blur all except mat
 One window class per line.
 
 > [!NOTE]
-> Better Blur DX respects blur regions set by windows themselves (e.g. Plasma surfaces).
+> Static Blur DX respects blur regions set by windows themselves (e.g. Plasma surfaces).
 > Force blur settings are ignored in these cases.
 
 ### Blur window decorations as well

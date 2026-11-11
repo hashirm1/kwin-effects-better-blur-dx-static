@@ -15,32 +15,28 @@
 #if KWIN_VERSION >= KWIN_VERSION_CODE(6, 5, 80)
 #  include <core/region.h>
 #endif
-
 #include <QEasingCurve>
 #include <QLoggingCategory>
 #include <QVariant>
 #include <QtNumeric>
 #include <QtPreprocessorSupport>
-
 #include <chrono>
 #include <optional>
 
-Q_LOGGING_CATEGORY(BBDX_WINDOW, "kwin_effect_better_blur_dx.window", QtInfoMsg)
-
-BBDX::Window::Window(BBDX::WindowManager *wm, KWin::EffectWindow *w) {
+Q_LOGGING_CATEGORY(BBDX_WINDOW, "kwin_effect_static_blur_dx.window", QtInfoMsg)
+SBDX::Window::Window(SBDX::WindowManager *wm, KWin::EffectWindow *w) {
     m_windowManager = wm;
     m_effectwindow = w;
     reconfigure();
     slotWindowFrameGeometryChanged();
-    connect(w, &KWin::EffectWindow::minimizedChanged, this, &BBDX::Window::slotMinimizedChanged);
-    connect(w, &KWin::EffectWindow::windowFullScreenChanged, this, &BBDX::Window::slotWindowFullScreenChanged);
-    connect(w, &KWin::EffectWindow::windowFrameGeometryChanged, this, &BBDX::Window::slotWindowFrameGeometryChanged);
-    connect(w, &KWin::EffectWindow::windowStartUserMovedResized, this, &BBDX::Window::slotWindowStartUserMovedResized);
-    connect(w, &KWin::EffectWindow::windowFinishUserMovedResized, this, &BBDX::Window::slotWindowFinishUserMovedResized);
-    connect(w, &KWin::EffectWindow::windowOpacityChanged, this, &BBDX::Window::slotWindowOpacityChanged);
+    connect(w, &KWin::EffectWindow::minimizedChanged, this, &SBDX::Window::slotMinimizedChanged);
+    connect(w, &KWin::EffectWindow::windowFullScreenChanged, this, &SBDX::Window::slotWindowFullScreenChanged);
+    connect(w, &KWin::EffectWindow::windowFrameGeometryChanged, this, &SBDX::Window::slotWindowFrameGeometryChanged);
+    connect(w, &KWin::EffectWindow::windowStartUserMovedResized, this, &SBDX::Window::slotWindowStartUserMovedResized);
+    connect(w, &KWin::EffectWindow::windowFinishUserMovedResized, this, &SBDX::Window::slotWindowFinishUserMovedResized);
+    connect(w, &KWin::EffectWindow::windowOpacityChanged, this, &SBDX::Window::slotWindowOpacityChanged);
 }
-
-void BBDX::Window::slotMinimizedChanged() {
+void SBDX::Window::slotMinimizedChanged() {
     refreshMaximizedState();
     if (m_maximizedState == MaximizedState::Complete
         && m_isMinimized) {
@@ -48,13 +44,12 @@ void BBDX::Window::slotMinimizedChanged() {
     }
 }
 
-void BBDX::Window::slotWindowFullScreenChanged() {
+void SBDX::Window::slotWindowFullScreenChanged() {
     // windowFrameGeometryChanged occurs before this
     // so we need to catch it explicitly to update our tracker
     refreshMaximizedState();
 }
-
-void BBDX::Window::slotWindowStartUserMovedResized() {
+void SBDX::Window::slotWindowStartUserMovedResized() {
     if (blurOriginIs(BlurOrigin::ForcedContent)) {
         // Don't allow blurring while transformed during move/resize
         // to avoid dragging an off-looking rectangular blur region
@@ -67,8 +62,7 @@ void BBDX::Window::slotWindowStartUserMovedResized() {
         m_blurWhileTransformedTransitionState = TransformState::None;
     }
 }
-
-void BBDX::Window::slotWindowFinishUserMovedResized() {
+void SBDX::Window::slotWindowFinishUserMovedResized() {
     if (blurOriginIs(BlurOrigin::ForcedContent)) {
         // After move/resize force blurring while transformed.
         // While still suboptimal (the Wobbly Windows effect doesn't end
@@ -82,8 +76,7 @@ void BBDX::Window::slotWindowFinishUserMovedResized() {
         m_blurWhileTransformedTransitionState = TransformState::None;
     }
 }
-
-void BBDX::Window::slotWindowFrameGeometryChanged() {
+void SBDX::Window::slotWindowFrameGeometryChanged() {
     updateForceBlurRegion();
     refreshMaximizedState();
 
@@ -93,13 +86,11 @@ void BBDX::Window::slotWindowFrameGeometryChanged() {
     m_windowManager->invalidateBlurCache(m_effectwindow,
                                          static_cast<uint>(BlurCacheInvalidationFlag::REGION),
                                          "frameGeometry changed");
-
     // Not sure if this is the best place to unset
     // this but seems to work fine for now
     m_restoresMaximized = false;
 }
-
-void BBDX::Window::slotWindowOpacityChanged(KWin::EffectWindow *w, qreal oldOpacity, qreal newOpacity) {
+void SBDX::Window::slotWindowOpacityChanged(KWin::EffectWindow *w, qreal oldOpacity, qreal newOpacity) {
     Q_UNUSED(oldOpacity);
     if (w->window()->isActive() && !m_originalOpacityActive.has_value()) {
         m_originalOpacityActive = newOpacity;
@@ -108,10 +99,9 @@ void BBDX::Window::slotWindowOpacityChanged(KWin::EffectWindow *w, qreal oldOpac
     }
 }
 
-void BBDX::Window::setIsTransformed(bool toggle) {
+void SBDX::Window::setIsTransformed(bool toggle) {
     if (m_isTransformed == toggle)
         return;
-
     m_isTransformed = toggle;
 
     // Unset m_shouldBlurWhileTransformed flag
@@ -122,10 +112,9 @@ void BBDX::Window::setIsTransformed(bool toggle) {
     }
 }
 
-void BBDX::Window::setMaximizedState(MaximizedState state) {
+void SBDX::Window::setMaximizedState(MaximizedState state) {
     const bool fullscreen = effectwindow()->isFullScreen();
     const bool minimized = effectwindow()->isMinimized();
-
     if (m_maximizedState == state
         && m_isFullScreen == fullscreen
         && m_isMinimized == minimized)
@@ -135,31 +124,29 @@ void BBDX::Window::setMaximizedState(MaximizedState state) {
     m_isFullScreen = fullscreen;
     m_isMinimized = minimized;
 
-    qCDebug(BBDX_WINDOW) << BBDX::LOG_PREFIX << "MaximizedState changed:" << *this;
+    qCDebug(BBDX_WINDOW) << SBDX::LOG_PREFIX << "MaximizedState changed:" << *this;
 }
 
-void BBDX::Window::setIsBlurFullyCovered(bool toggle) {
+void SBDX::Window::setIsBlurFullyCovered(bool toggle) {
     if (m_isBlurFullyCovered == toggle) {
         return;
     }
 
     m_isBlurFullyCovered = toggle;
-
     // blur was frozen, we need a full repaint to
     // refresh everything
     if (!toggle) {
         effectwindow()->addRepaintFull();
     }
 
-    qCDebug(BBDX_WINDOW) << BBDX::LOG_PREFIX << "BlurFullyCovered changed:" << *this;
+    qCDebug(BBDX_WINDOW) << SBDX::LOG_PREFIX << "BlurFullyCovered changed:" << *this;
 }
 
-bool BBDX::Window::shouldBlurWhileTransformed() const {
+bool SBDX::Window::shouldBlurWhileTransformed() const {
     // While minimized there's no reason to blur
     if (m_isMinimized) {
         return false;
     }
-
     // While completely maximized we can always blur.
     // Avoids weirdness while (de-)maximzing by dragging the
     // titlebar with Wobbly Windows enabled.
@@ -170,11 +157,10 @@ bool BBDX::Window::shouldBlurWhileTransformed() const {
     return m_shouldBlurWhileTransformed;
 }
 
-void BBDX::Window::refreshMaximizedState() {
+void SBDX::Window::refreshMaximizedState() {
     m_windowManager->refreshMaximizedState(this);
 }
-
-void BBDX::Window::updateForceBlurRegion() {
+void SBDX::Window::updateForceBlurRegion() {
     if (!m_shouldForceBlur) {
         if (m_forceBlurContent.has_value() || m_forceBlurFrame.has_value()) {
             m_forceBlurContent.reset();
@@ -186,17 +172,15 @@ void BBDX::Window::updateForceBlurRegion() {
 
     KWin::RegionF content{};
     KWin::RegionF frame{};
-
     // We'll push both content and frame through the "raw" frame later
     // for full control over the blurred region.
     // So unlike BlurEffect these are frameGeometry local not contentsRect local
 
     // frameGeometry rounded in to avoid leaking "blur stripes" around window
-    content |= BBDX::rectRoundedIn(
+    content |= SBDX::rectRoundedIn(
         m_effectwindow->frameGeometry()
             .translated(-m_effectwindow->frameGeometry().topLeft())
     );
-
     // content at this point has content + decorations
     // so to just get the decorations clip the contentsRect
     if (m_effectwindow->decoration()) {
@@ -206,9 +190,8 @@ void BBDX::Window::updateForceBlurRegion() {
         // when the window is at a fractional position)
         // Because it's only used for *clipping* `content`
         // this should never lead to the actual content bleeding out from the window.
-        frame = content - BBDX::rectRoundedOut(m_effectwindow->contentsRect()).adjusted(-1, -1, 1, 1);
+        frame = content - SBDX::rectRoundedOut(m_effectwindow->contentsRect()).adjusted(-1, -1, 1, 1);
     }
-
     // now clip the frame on decorated windows to get the actual content
     for (const auto &rect : frame.rects()) {
         content -= rect;
@@ -219,21 +202,19 @@ void BBDX::Window::updateForceBlurRegion() {
         return;
     }
 
-    qCDebug(BBDX_WINDOW) << BBDX::LOG_PREFIX
+    qCDebug(BBDX_WINDOW) << SBDX::LOG_PREFIX
                          << "Force blur regions changed:" << m_effectwindow->windowClass() << "\n"
                          << "content" << content << "\n"
                          << "frame" << frame;
-
     m_forceBlurContent = std::move(content);
     m_forceBlurFrame = std::move(frame);
     triggerBlurRegionUpdate();
 }
 
-void BBDX::Window::triggerBlurRegionUpdate() const {
+void SBDX::Window::triggerBlurRegionUpdate() const {
     m_windowManager->triggerBlurRegionUpdate(m_effectwindow);
 }
-
-bool BBDX::Window::opacityChangedFromOriginal() {
+bool SBDX::Window::opacityChangedFromOriginal() {
     if (effectwindow()->window()->isActive()) {
         return !qFuzzyCompare(m_originalOpacityActive.value_or(1.0), effectwindow()->opacity());
     } else {
@@ -241,19 +222,17 @@ bool BBDX::Window::opacityChangedFromOriginal() {
     }
 }
 
-void BBDX::Window::blurOriginSet(BlurOrigin origin) {
+void SBDX::Window::blurOriginSet(BlurOrigin origin) {
     m_blurOriginMask |= static_cast<unsigned int>(origin);
 }
-
-void BBDX::Window::blurOriginUnset(BlurOrigin origin) {
+void SBDX::Window::blurOriginUnset(BlurOrigin origin) {
     m_blurOriginMask &= ~static_cast<unsigned int>(origin);
 }
 
-bool BBDX::Window::blurOriginIs(BlurOrigin origin) const {
+bool SBDX::Window::blurOriginIs(BlurOrigin origin) const {
     return !!(m_blurOriginMask & static_cast<unsigned int>(origin));
 }
-
-QString BBDX::Window::blurOriginToString() const {
+QString SBDX::Window::blurOriginToString() const {
     QString s{};
     if (blurOriginIs(BlurOrigin::RequestedContent))
         s.append("RequestedContent,");
@@ -269,13 +248,11 @@ QString BBDX::Window::blurOriginToString() const {
     } else {
         s.removeLast();
     }
-
     return s;
 }
 
-QString BBDX::Window::maximizedStateToString() const {
+QString SBDX::Window::maximizedStateToString() const {
     QString s;
-
     switch (m_maximizedState) {
         case MaximizedState::Restored:
             s = QStringLiteral("Restored");
@@ -293,7 +270,6 @@ QString BBDX::Window::maximizedStateToString() const {
             s = QStringLiteral("Unknown");
             break;
     }
-
     if (m_isFullScreen)
         s.append("+FullScreen");
 
@@ -303,7 +279,7 @@ QString BBDX::Window::maximizedStateToString() const {
     return s;
 }
 
-bool BBDX::Window::neverForceBlur() const {
+bool SBDX::Window::neverForceBlur() const {
     if (effectwindow()->isDesktop())
         return true;
 
@@ -315,14 +291,12 @@ bool BBDX::Window::neverForceBlur() const {
 
     const QString windowClass = effectwindow()->window()->resourceClass();
     const KWin::Layer layer = effectwindow()->window()->layer();
-
     if (windowClass == QStringLiteral("xwaylandvideobridge"))
         return true;
 
     if ((windowClass == "spectacle" || windowClass == "org.kde.spectacle")
         && (layer == KWin::Layer::OverlayLayer || layer == KWin::Layer::ActiveLayer))
         return true;
-
     // Some application-managed popups (notably browser extension panels on Wayland)
     // show up as undecorated Unknown windows with no caption. They don't expose a
     // useful opaque region to the compositor, so force-blurring them produces a
@@ -332,7 +306,6 @@ bool BBDX::Window::neverForceBlur() const {
         && effectwindow()->caption().isEmpty()) {
         return true;
     }
-
     // don't touch KWin internal windows
     // this includes the snapping assistant zones
     // and they don't handle blur well at all
@@ -341,14 +314,13 @@ bool BBDX::Window::neverForceBlur() const {
     return false;
 }
 
-bool BBDX::Window::shouldForceBlur() const {
+bool SBDX::Window::shouldForceBlur() const {
     if (neverForceBlur())
         return false;
 
     return m_windowManager->shouldForceBlurWindowClass(effectwindow());
 }
-
-void BBDX::Window::reconfigure() {
+void SBDX::Window::reconfigure() {
     // must be set before shouldForceBlur()
     m_blurMenus = m_windowManager->blurMenus();
     m_blurDocks = m_windowManager->blurDocks();
@@ -356,7 +328,6 @@ void BBDX::Window::reconfigure() {
     m_shouldForceBlur = shouldForceBlur();
 
     m_userBorderRadius = m_windowManager->userBorderRadius();
-
     slotWindowOpacityChanged(effectwindow(), 0.0, effectwindow()->opacity());
     m_windowManager->invalidateBlurCache(m_effectwindow,
                                          static_cast<uint>(BlurCacheInvalidationFlag::REGION),
@@ -364,27 +335,41 @@ void BBDX::Window::reconfigure() {
     updateForceBlurRegion();
 }
 
-void BBDX::Window::getFinalBlurRegion(std::optional<KWin::RegionF> &content, std::optional<KWin::RegionF> &frame) {
+void SBDX::Window::getFinalBlurRegion(std::optional<KWin::RegionF> &content, std::optional<KWin::RegionF> &frame) {
     const auto oldBlurOriginMask = m_blurOriginMask;
-
+    // always clip blur regions into the frameGeometry
+    // to avoid leaving stripes outside
+    // (usually bottom and/or right side of the window)
+    // The force-blur regiongs are pre-clipped
+    const auto clipRect = SBDX::rectRoundedIn(
+        m_effectwindow->frameGeometry()
+        .translated(-m_effectwindow->frameGeometry().topLeft())
+    );
     // If we already have a blur region at this point
     // the window requested it.
     // This tracker allows us to later decide if we want
     // to trust the window or use user parameters
     // e.g. for corner radius.
     if (content.has_value()) {
+        // content is local to contentsRect which is local to frameGeometry
+        const auto contentTopLeft = m_effectwindow->contentsRect().topLeft();
+        content = SBDX::regionTranslatedF(
+            SBDX::regionTranslatedF(*content, contentTopLeft) & clipRect,
+            -contentTopLeft
+        );
+
         blurOriginSet(BlurOrigin::RequestedContent);
         blurOriginUnset(BlurOrigin::ForcedContent);
     } else {
         blurOriginUnset(BlurOrigin::RequestedContent);
     }
     if (frame.has_value()) {
+        frame = *frame & clipRect;
         blurOriginSet(BlurOrigin::RequestedFrame);
         blurOriginUnset(BlurOrigin::ForcedFrame);
     } else {
         blurOriginUnset(BlurOrigin::RequestedFrame);
     }
-
     // Respect the requested blur region for Plasma surfaces.
     // We used to respect all requested blur regions but some are just
     // completely bogus (e.g. some KDE apps using Breeze like setting just part of the window blurred
@@ -393,14 +378,12 @@ void BBDX::Window::getFinalBlurRegion(std::optional<KWin::RegionF> &content, std
     // and thus must occur after {content,frame}.has_value() checks)
     if (isPlasmaSurface()) {
         if (m_blurOriginMask != oldBlurOriginMask) {
-            qCDebug(BBDX_WINDOW) << BBDX::LOG_PREFIX << "Blur origin changed:" << *this;
+            qCDebug(BBDX_WINDOW) << SBDX::LOG_PREFIX << "Blur origin changed:" << *this;
         }
         return;
     }
-
     // the effective blurred region
     KWin::RegionF effectiveRegion{};
-
     // outside of the Plasma surface special case
     // content should always be overriden as it can have
     // "garbage data" (e.g. Dolphin's theming sets blur region for like 4 random Rects
@@ -414,7 +397,6 @@ void BBDX::Window::getFinalBlurRegion(std::optional<KWin::RegionF> &content, std
     } else {
         blurOriginUnset(BlurOrigin::ForcedContent);
     }
-
     if (frame) {
         // preserve frame if it already exists as it's likely more accurate
         // (e.g. already has its corners rounded or an outline that shouldn't be blured)
@@ -432,7 +414,6 @@ void BBDX::Window::getFinalBlurRegion(std::optional<KWin::RegionF> &content, std
         // no frame / CSD
         blurOriginUnset(BlurOrigin::ForcedFrame);
     }
-
     // push the effective forced regions through frame only
     // which gives us full control over geometry and implicitly
     // preserves window provided content
@@ -440,26 +421,23 @@ void BBDX::Window::getFinalBlurRegion(std::optional<KWin::RegionF> &content, std
     frame = effectiveRegion;
 
     if (m_blurOriginMask != oldBlurOriginMask) {
-        qCDebug(BBDX_WINDOW) << BBDX::LOG_PREFIX << "Blur origin changed:" << *this;
+        qCDebug(BBDX_WINDOW) << SBDX::LOG_PREFIX << "Blur origin changed:" << *this;
     }
-
     // this isn't fatal but we only expect one to be set, so log if that's not the case
     if (blurOriginIs(BlurOrigin::RequestedContent) && blurOriginIs(BlurOrigin::ForcedContent)) {
-        qCWarning(BBDX_WINDOW) << BBDX::LOG_PREFIX
+        qCWarning(BBDX_WINDOW) << SBDX::LOG_PREFIX
                                << "BlurOrigin::RequestedContent and BlurOrigin::ForcedContent"
                                << "both set on window"
                                << effectwindow()->window()->resourceClass();
     }
-
     if (blurOriginIs(BlurOrigin::RequestedFrame) && blurOriginIs(BlurOrigin::ForcedFrame)) {
-        qCWarning(BBDX_WINDOW) << BBDX::LOG_PREFIX
+        qCWarning(BBDX_WINDOW) << SBDX::LOG_PREFIX
                                << "BlurOrigin::RequestedFrame and BlurOrigin::ForcedFrame"
                                << "both set on window"
                                << effectwindow()->window()->resourceClass();
     }
 }
-
-KWin::BorderRadius BBDX::Window::getEffectiveBorderRadius() {
+KWin::BorderRadius SBDX::Window::getEffectiveBorderRadius() {
     // always respect window provided radius
     // (although this seems to only ever be set by Breeze's
     // "Round bottom corners of windows with no borders"
@@ -471,7 +449,6 @@ KWin::BorderRadius BBDX::Window::getEffectiveBorderRadius() {
     if (isPlasmaSurface()) {
         return windowCornerRadius;
     }
-
     // Breeze has a "Round bottom corners of windows with no borders"
     // option which sets radius for the *bottom corners only* (because
     // it assumes no blur behind the top corners).
@@ -482,18 +459,15 @@ KWin::BorderRadius BBDX::Window::getEffectiveBorderRadius() {
         // No adjustments relevant for CSD windows
         if (!effectwindow()->hasDecoration())
             return windowCornerRadius;
-
         // If not force-blurring decorations we don't need
         // any adjustments
         if (!(blurOriginIs(BlurOrigin::ForcedFrame)))
             return windowCornerRadius;
-
         // if top radius is set explicitly by decoration keep it
         const qreal topLeft = windowCornerRadius.topLeft() > 0.0 ?
             windowCornerRadius.topLeft() : windowCornerRadius.bottomLeft();
         const qreal topRight = windowCornerRadius.topRight() > 0.0 ?
             windowCornerRadius.topRight() : windowCornerRadius.bottomRight();
-
         return KWin::BorderRadius(topLeft,
                                   topRight,
                                   windowCornerRadius.bottomLeft(),
@@ -504,7 +478,6 @@ KWin::BorderRadius BBDX::Window::getEffectiveBorderRadius() {
     if (m_isFullScreen || m_maximizedState == MaximizedState::Complete) {
         return KWin::BorderRadius();
     }
-
     // fallback to configured radius
     if (m_userBorderRadius > 0.0) {
         // If decoration is blurred or window has CSD we need to round all corners
@@ -522,8 +495,7 @@ KWin::BorderRadius BBDX::Window::getEffectiveBorderRadius() {
         return KWin::BorderRadius();
     }
 }
-
-qreal BBDX::Window::getEffectiveBlurOpacity(KWin::WindowPaintData &data) {
+qreal SBDX::Window::getEffectiveBlurOpacity(KWin::WindowPaintData &data) {
     // Plasma surfaces expect their opacity to affect
     // the blur e.g. to hide the blurred surface alongside
     // themselves by adjusting their opacity at run time.
@@ -532,7 +504,6 @@ qreal BBDX::Window::getEffectiveBlurOpacity(KWin::WindowPaintData &data) {
     if (isPlasmaSurface() && opacityChangedFromOriginal()) [[unlikely]] {
         return effectwindow()->opacity() * data.opacity();
     }
-
     // ease into and out of the phase without blur
     // if moving/resizing with Wobbly Windows
     // TODO: maybe move partly this to a separate function
@@ -540,14 +511,12 @@ qreal BBDX::Window::getEffectiveBlurOpacity(KWin::WindowPaintData &data) {
     if (m_isTransformed && m_blurWhileTransformedTransitionState != TransformState::None) [[unlikely]] {
         const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::steady_clock::now() - m_blurWhileTransformedTransitionStart).count();
-
         // animation takes 250ms max for now
         const qreal progress = elapsed / 250.0;
 
-        // we need to queue a full repaint here to 
+        // we need to queue a full repaint here to
         // avoid flickering due to blur-region-clipping
         effectwindow()->addRepaintFull();
-
         switch (m_blurWhileTransformedTransitionState) {
             case TransformState::Started:
                 // De-maximizing a window by dragging the titlebar
@@ -560,7 +529,6 @@ qreal BBDX::Window::getEffectiveBlurOpacity(KWin::WindowPaintData &data) {
                     m_blurWhileTransformedTransitionStart = std::chrono::steady_clock::now();
                     return data.opacity();
                 }
-
                 if (progress >= 1.0) {
                     // fade out done
                     // We can stop blurring now until
@@ -582,7 +550,6 @@ qreal BBDX::Window::getEffectiveBlurOpacity(KWin::WindowPaintData &data) {
                     m_blurWhileTransformedTransitionState = TransformState::None;
                     return data.opacity();
                 }
-
                 if (progress >= 1.0) {
                     // fade in done
                     m_blurWhileTransformedTransitionState = TransformState::None;
@@ -596,11 +563,10 @@ qreal BBDX::Window::getEffectiveBlurOpacity(KWin::WindowPaintData &data) {
                 break;
         }
     }
-
     return data.opacity();
 }
 
-bool BBDX::Window::isPlasmaSurface() const {
+bool SBDX::Window::isPlasmaSurface() const {
     // Plasma surfaces must specify their own blur
     if (!(blurOriginIs(BlurOrigin::RequestedContent)))
         return false;
@@ -608,7 +574,6 @@ bool BBDX::Window::isPlasmaSurface() const {
     // Plasma surfaces (afaik) never have decorations
     if (effectwindow()->hasDecoration())
         return false;
-
     // These window classes are known to be Plasma surfaces
     const auto resourceClass = effectwindow()->window()->resourceClass();
     if (resourceClass == QStringLiteral("org.kde.plasmashell")
@@ -616,7 +581,6 @@ bool BBDX::Window::isPlasmaSurface() const {
         || resourceClass == QStringLiteral("org.kde.krunner")
         || resourceClass == QStringLiteral("krunner"))
         return true;
-
     // If a window is special it's very likely a Plasma surface
     if (effectwindow()->isSpecialWindow())
         return true;
@@ -626,7 +590,6 @@ bool BBDX::Window::isPlasmaSurface() const {
     // user override
     if (isMenu())
         return true;
-
     // Some popups like the Meta+Ctrl+ESC killer have an empty window class,
     // but are still considered KWin::WindowType::Normal
     // Let's just assume an empty class means they're likely Plasma surfaces as well
@@ -636,20 +599,18 @@ bool BBDX::Window::isPlasmaSurface() const {
     // Likely not a Plasma surface then
     return false;
 }
-
-bool BBDX::Window::isMenu() const {
+bool SBDX::Window::isMenu() const {
     return (effectwindow()->isMenu()
             || effectwindow()->isDropdownMenu()
             || effectwindow()->isPopupMenu()
             || effectwindow()->isPopupWindow());
 }
 
-bool BBDX::Window::isBlurred() const {
+bool SBDX::Window::isBlurred() const {
     return m_blurOriginMask > 0;
 }
-
-namespace BBDX {
-QDebug operator<<(QDebug &debug, const BBDX::Window &window) {
+namespace SBDX {
+QDebug operator<<(QDebug &debug, const SBDX::Window &window) {
     debug << "\n";
     debug << "windowClass:" << window.effectwindow()->windowClass() << "\n";
     debug << "windowType:" << window.effectwindow()->windowType() << "\n";
@@ -660,4 +621,4 @@ QDebug operator<<(QDebug &debug, const BBDX::Window &window) {
     debug << "isBlurFullyCovered:" << window.isBlurFullyCovered() << "\n";
     return debug;
 }
-} // namespace BBDX
+} // namespace SBDX

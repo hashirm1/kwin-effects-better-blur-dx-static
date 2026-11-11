@@ -15,7 +15,6 @@
 #include <scene/borderradius.h>
 #include <scene/windowitem.h>
 #include <window.h>
-
 #if KWIN_VERSION >= KWIN_VERSION_CODE(6, 5, 80)
 #  include <core/output.h>
 #  include <core/region.h>
@@ -26,27 +25,25 @@
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
 #include <QString>
-
 #include <memory>
 #include <utility>
 #include <vector>
 
-Q_LOGGING_CATEGORY(WINDOW_MANAGER, "kwin_effect_better_blur_dx.window_manager", QtInfoMsg)
+Q_LOGGING_CATEGORY(WINDOW_MANAGER, "kwin_effect_static_blur_dx.window_manager", QtInfoMsg)
 
-BBDX::WindowManager::WindowManager(BBDX::BlurEffect *effect) {
+SBDX::WindowManager::WindowManager(SBDX::BlurEffect *effect) {
     m_effect = effect;
 
     // add existing windows
     for (const auto &window : KWin::effects->stackingOrder()) {
         slotWindowAdded(window);
     }
-
     connect(KWin::effects, &KWin::EffectsHandler::windowAdded, this, &WindowManager::slotWindowAdded);
     connect(KWin::effects, &KWin::EffectsHandler::windowDeleted, this, &WindowManager::slotWindowDeleted);
 }
 
-void BBDX::WindowManager::slotWindowAdded(KWin::EffectWindow *w) {
-    auto window = std::make_unique<BBDX::Window>(this, w);
+void SBDX::WindowManager::slotWindowAdded(KWin::EffectWindow *w) {
+    auto window = std::make_unique<SBDX::Window>(this, w);
 
     m_windows.insert_or_assign(w, std::move(window));
 
@@ -54,13 +51,12 @@ void BBDX::WindowManager::slotWindowAdded(KWin::EffectWindow *w) {
         m_docks.insert(w);
         refreshMaximizedStateAll();
     }
-
-    qCDebug(WINDOW_MANAGER) << BBDX::LOG_PREFIX << "Window added:" << *(m_windows[w]);
+    qCDebug(WINDOW_MANAGER) << SBDX::LOG_PREFIX << "Window added:" << *(m_windows[w]);
 }
 
-void BBDX::WindowManager::slotWindowDeleted(KWin::EffectWindow *w) {
+void SBDX::WindowManager::slotWindowDeleted(KWin::EffectWindow *w) {
     if (const auto it = m_windows.find(w); it != m_windows.end()) {
-        qCDebug(WINDOW_MANAGER) << BBDX::LOG_PREFIX << "Window removed:" << *(it->second);
+        qCDebug(WINDOW_MANAGER) << SBDX::LOG_PREFIX << "Window removed:" << *(it->second);
         m_windows.erase(it);
     }
 
@@ -69,19 +65,17 @@ void BBDX::WindowManager::slotWindowDeleted(KWin::EffectWindow *w) {
         refreshMaximizedStateAll();
     }
 }
-
-BBDX::Window* BBDX::WindowManager::findWindow(const KWin::EffectWindow *w) const {
+SBDX::Window* SBDX::WindowManager::findWindow(const KWin::EffectWindow *w) const {
     if (const auto it = m_windows.find(w); it != m_windows.end()) {
         return it->second.get();
     }
     return nullptr;
 }
 
-std::vector<BBDX::Window *> BBDX::WindowManager::windowsByStackingOrder() const {
-    std::vector<BBDX::Window *> windows{};
+std::vector<SBDX::Window *> SBDX::WindowManager::windowsByStackingOrder() const {
+    std::vector<SBDX::Window *> windows{};
 
     for (const auto &[kWindow, bbdxWindow] : m_windows) {
-
         // insert sorted by stackingOrder
         for (auto it = windows.begin(); ; it++) {
             if (it == windows.end()) {
@@ -98,28 +92,25 @@ std::vector<BBDX::Window *> BBDX::WindowManager::windowsByStackingOrder() const 
 
     return windows;
 }
-
-void BBDX::WindowManager::reconfigure() {
-    auto config = BBDX::BlurConfig::self();
+void SBDX::WindowManager::reconfigure() {
+    auto config = SBDX::BlurConfig::self();
 
     if (!config) {
-        qCWarning(WINDOW_MANAGER) << BBDX::LOG_PREFIX
+        qCWarning(WINDOW_MANAGER) << SBDX::LOG_PREFIX
                                   << "WindowManager::reconfigure() called before BlurConfig::read()";
         return;
     }
 
     QList<QString> windowClassesFixed{};
     QList<QRegularExpression> windowClassesRegex{};
-
     for (const auto &line : config->windowClasses().split("\n", Qt::SkipEmptyParts)) {
         if (line.length() >= 2 && line.startsWith(QChar('/')) && line.endsWith(QChar('/'))) {
             // regex pattern
 
             QString pattern = line.sliced(1, line.length() - 2);
             QRegularExpression regex{pattern};
-
             if (!regex.isValid()) {
-                qCWarning(WINDOW_MANAGER) << BBDX::LOG_PREFIX
+                qCWarning(WINDOW_MANAGER) << SBDX::LOG_PREFIX
                                           << "Ignoring malformed regex pattern:" << pattern
                                           << "-" << regex.errorString();
                 continue;
@@ -131,7 +122,6 @@ void BBDX::WindowManager::reconfigure() {
         } else {
             // fixed string
             // $blank -> empty window class
-
             if (line == QStringLiteral("$blank")) {
                 windowClassesFixed.append(QStringLiteral(""));
             } else {
@@ -142,7 +132,6 @@ void BBDX::WindowManager::reconfigure() {
 
     m_windowClassesFixed = std::move(windowClassesFixed);
     m_windowClassesRegex = std::move(windowClassesRegex);
-
     if (config->blurMatching()) {
         m_windowClassMatchMode = WindowClassMatchMode::Whitelist;
     } else {
@@ -159,8 +148,7 @@ void BBDX::WindowManager::reconfigure() {
         window->reconfigure();
     }
 }
-
-void BBDX::WindowManager::refreshMaximizedState(BBDX::Window *window) const {
+void SBDX::WindowManager::refreshMaximizedState(SBDX::Window *window) const {
     /**
      * TODO: convert to RegionF
      */
@@ -175,11 +163,9 @@ void BBDX::WindowManager::refreshMaximizedState(BBDX::Window *window) const {
         if (dock->screen() != screen)  {
             continue;
         }
-
         // we need to "expand" the docks to their entire screen edge
         // or the boundingRect is wrong
         KWin::Rect dock_rect{dock->frameGeometry().toRect()};
-
         if (dock_rect.width() > dock_rect.height()) {
             // horizontal
             dock_rect.setX(dock->screen()->geometry().x());
@@ -192,7 +178,6 @@ void BBDX::WindowManager::refreshMaximizedState(BBDX::Window *window) const {
 
         effectiveScreenRegion -= KWin::Region(dock_rect);
     }
-
     const KWin::Rect effectiveScreenRect{effectiveScreenRegion.boundingRect()};
     const KWin::Rect windowRect{KWin::Rect(w->frameGeometry().toRect())};
 
@@ -205,7 +190,6 @@ void BBDX::WindowManager::refreshMaximizedState(BBDX::Window *window) const {
         windowRect.top() <= effectiveScreenRect.top()
         && windowRect.bottom() >= effectiveScreenRect.bottom()
     };
-
     if (maximizedHorizontal && maximizedVertical) {
         window->setMaximizedState(Window::MaximizedState::Complete);
     } else if (maximizedHorizontal && !maximizedVertical) {
@@ -216,14 +200,13 @@ void BBDX::WindowManager::refreshMaximizedState(BBDX::Window *window) const {
         window->setMaximizedState(Window::MaximizedState::Restored);
     }
 }
-
-void BBDX::WindowManager::refreshMaximizedStateAll() const {
+void SBDX::WindowManager::refreshMaximizedStateAll() const {
     for (const auto &[w, window] : m_windows) {
         refreshMaximizedState(window.get());
     }
 }
 
-bool BBDX::WindowManager::matchesWindowClassFixed(const KWin::EffectWindow *w) const {
+bool SBDX::WindowManager::matchesWindowClassFixed(const KWin::EffectWindow *w) const {
     if (m_windowClassesFixed.contains(w->window()->resourceClass()))
         return true;
 
@@ -232,8 +215,7 @@ bool BBDX::WindowManager::matchesWindowClassFixed(const KWin::EffectWindow *w) c
 
     return false;
 }
-
-bool BBDX::WindowManager::matchesWindowClassRegex(const KWin::EffectWindow *w) const {
+bool SBDX::WindowManager::matchesWindowClassRegex(const KWin::EffectWindow *w) const {
     for (const auto &regex : m_windowClassesRegex) {
         if (auto m = regex.match(w->window()->resourceClass()); m.hasMatch())
             return true;
@@ -244,8 +226,7 @@ bool BBDX::WindowManager::matchesWindowClassRegex(const KWin::EffectWindow *w) c
 
     return false;
 }
-
-bool BBDX::WindowManager::shouldForceBlurWindowClass(const KWin::EffectWindow *w) const {
+bool SBDX::WindowManager::shouldForceBlurWindowClass(const KWin::EffectWindow *w) const {
     if (matchesWindowClassFixed(w) || matchesWindowClassRegex(w)) {
         switch (m_windowClassMatchMode) {
             case WindowManager::WindowClassMatchMode::Whitelist:
@@ -266,14 +247,12 @@ bool BBDX::WindowManager::shouldForceBlurWindowClass(const KWin::EffectWindow *w
         }
     }
 }
-
-void BBDX::WindowManager::triggerBlurRegionUpdate(KWin::EffectWindow *w) const {
+void SBDX::WindowManager::triggerBlurRegionUpdate(KWin::EffectWindow *w) const {
     m_effect->updateBlurRegion(w);
 }
-
-void BBDX::WindowManager::invalidateBlurCache(KWin::EffectWindow *w, uint flags, const char *reason) const {
+void SBDX::WindowManager::invalidateBlurCache(KWin::EffectWindow *w, uint flags, const char *reason) const {
     if (auto it = m_effect->m_windows.find(w); it != m_effect->m_windows.end()) {
-        BBDX::BlurEffectData &blurInfo = it->second;
+        SBDX::BlurEffectData &blurInfo = it->second;
         for (auto &[_, renderInfo] : blurInfo.render) {
             if (renderInfo.cache) {
                 renderInfo.cache->invalidate(flags, reason);
@@ -281,8 +260,7 @@ void BBDX::WindowManager::invalidateBlurCache(KWin::EffectWindow *w, uint flags,
         }
     }
 }
-
-void BBDX::WindowManager::setWindowIsTransformed(const KWin::EffectWindow *w, bool toggle) const {
+void SBDX::WindowManager::setWindowIsTransformed(const KWin::EffectWindow *w, bool toggle) const {
     const auto window = findWindow(w);
 
     if (!window)
@@ -291,7 +269,7 @@ void BBDX::WindowManager::setWindowIsTransformed(const KWin::EffectWindow *w, bo
     window->setIsTransformed(toggle);
 }
 
-bool BBDX::WindowManager::windowShouldBlurWhileTransformed(const KWin::EffectWindow *w) const {
+bool SBDX::WindowManager::windowShouldBlurWhileTransformed(const KWin::EffectWindow *w) const {
     const auto window = findWindow(w);
 
     // assume false for unmanaged windows
@@ -300,8 +278,7 @@ bool BBDX::WindowManager::windowShouldBlurWhileTransformed(const KWin::EffectWin
 
     return window->shouldBlurWhileTransformed();
 }
-
-bool BBDX::WindowManager::windowIsBlurred(const KWin::EffectWindow *w) const {
+bool SBDX::WindowManager::windowIsBlurred(const KWin::EffectWindow *w) const {
     const auto window = findWindow(w);
 
     // assume false for unmanaged windows
@@ -311,15 +288,14 @@ bool BBDX::WindowManager::windowIsBlurred(const KWin::EffectWindow *w) const {
     return window->isBlurred();
 }
 
-void BBDX::WindowManager::getFinalBlurRegion(const KWin::EffectWindow *w, std::optional<KWin::RegionF> &content, std::optional<KWin::RegionF> &frame) const {
+void SBDX::WindowManager::getFinalBlurRegion(const KWin::EffectWindow *w, std::optional<KWin::RegionF> &content, std::optional<KWin::RegionF> &frame) const {
     const auto window = findWindow(w);
     if (!window)
         return;
-
     window->getFinalBlurRegion(content, frame);
 }
 
-KWin::BorderRadius BBDX::WindowManager::getEffectiveBorderRadius(const KWin::EffectWindow *w) const {
+KWin::BorderRadius SBDX::WindowManager::getEffectiveBorderRadius(const KWin::EffectWindow *w) const {
     const auto window = findWindow(w);
 
     // unmanaged windows can never be force blurred
@@ -329,9 +305,8 @@ KWin::BorderRadius BBDX::WindowManager::getEffectiveBorderRadius(const KWin::Eff
     return window->getEffectiveBorderRadius();
 }
 
-qreal BBDX::WindowManager::getEffectiveBlurOpacity(const KWin::EffectWindow *w, KWin::WindowPaintData &data) const {
+qreal SBDX::WindowManager::getEffectiveBlurOpacity(const KWin::EffectWindow *w, KWin::WindowPaintData &data) const {
     const auto window = findWindow(w);
-
     // for unmanaged windows just use the paint data
     if (!window)
         return data.opacity();
@@ -339,7 +314,7 @@ qreal BBDX::WindowManager::getEffectiveBlurOpacity(const KWin::EffectWindow *w, 
     return window->getEffectiveBlurOpacity(data);
 }
 
-bool BBDX::WindowManager::windowIsBlurFullyCovered(KWin::EffectWindow *w) const {
+bool SBDX::WindowManager::windowIsBlurFullyCovered(KWin::EffectWindow *w) const {
     const auto window = findWindow(w);
 
     // for unmanaged windows assume false so they
@@ -349,8 +324,7 @@ bool BBDX::WindowManager::windowIsBlurFullyCovered(KWin::EffectWindow *w) const 
 
     return window->isBlurFullyCovered();
 }
-
-void BBDX::WindowManager::repaintAllBlurredWindows() const {
+void SBDX::WindowManager::repaintAllBlurredWindows() const {
     for (const auto &[kWindow, bbdxWindow] : m_windows) {
         if (!bbdxWindow->isBlurred()) {
             continue;
@@ -360,12 +334,11 @@ void BBDX::WindowManager::repaintAllBlurredWindows() const {
     }
 }
 
-void BBDX::WindowManager::flushWindowCaches(BBDX::Window *window) const {
+void SBDX::WindowManager::flushWindowCaches(SBDX::Window *window) const {
     auto it = m_effect->m_windows.find(window->effectwindow());
     if (it == m_effect->m_windows.end()) {
         return;
     }
-
     auto &effectData = it->second;
     for (auto &[view, renderData] : effectData.render) {
         if (auto cacheEntry = renderData.cache.get()) {
@@ -374,12 +347,11 @@ void BBDX::WindowManager::flushWindowCaches(BBDX::Window *window) const {
     }
 }
 
-void BBDX::WindowManager::flushWindowCachesFor(BBDX::Window *window, std::chrono::milliseconds duration) const {
+void SBDX::WindowManager::flushWindowCachesFor(SBDX::Window *window, std::chrono::milliseconds duration) const {
     auto it = m_effect->m_windows.find(window->effectwindow());
     if (it == m_effect->m_windows.end()) {
         return;
     }
-
     auto &effectData = it->second;
     for (auto &[view, renderData] : effectData.render) {
         if (auto cacheEntry = renderData.cache.get()) {
@@ -388,13 +360,12 @@ void BBDX::WindowManager::flushWindowCachesFor(BBDX::Window *window, std::chrono
     }
 }
 
-void BBDX::WindowManager::flushAllWindowCaches() const {
+void SBDX::WindowManager::flushAllWindowCaches() const {
     for (const auto &[kWindow, bbdxWindow] : m_windows) {
         flushWindowCaches(bbdxWindow.get());
     }
 }
-
-void BBDX::WindowManager::flushAllWindowCachesFor(std::chrono::milliseconds duration) const {
+void SBDX::WindowManager::flushAllWindowCachesFor(std::chrono::milliseconds duration) const {
     for (const auto &[kWindow, bbdxWindow] : m_windows) {
         flushWindowCachesFor(bbdxWindow.get(), duration);
     }

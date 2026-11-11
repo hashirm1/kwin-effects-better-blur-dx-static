@@ -6,11 +6,9 @@
 #include <QVector2D>
 #include <QVector4D>
 #include <QtNumeric>
-
 #include <memory>
 
-namespace BBDX {
-
+namespace SBDX {
 class RefractionPass {
 private:
     std::unique_ptr<KWin::GLShader> m_shader;
@@ -28,7 +26,6 @@ private:
     int m_refractionRGBFringingLocation;
     int m_refractionTextureRepeatModeLocation;
     int m_refractionModeLocation;
-
     bool m_enabled{false};
 
     // user settings
@@ -52,7 +49,6 @@ public:
      * reconfigure from BlurConfig
      */
     void reconfigure();
-
     /**
      * Check if refraction pass is enabled
      */
@@ -64,7 +60,6 @@ public:
      * returns false if refraction is disabled
      */
     bool pushShader() const;
-
     /**
      * Set GLSL parameters
      *
@@ -77,5 +72,4 @@ public:
                        const QRect &scaledBackgroundRect) const;
 };
 
-} // namespace BBDX
-
+} // namespace SBDX

@@ -13,11 +13,12 @@
 #include <KPluginFactory>
 #include "kwineffects_interface.h"
 #include "settings.hpp"
-
 #include <QFileDialog>
 #include <QPushButton>
+#include "image_source.h"
+#include <QLabel>
 
-namespace BBDX {
+namespace SBDX {
 
 K_PLUGIN_CLASS(BlurEffectConfig)
 
@@ -27,25 +28,36 @@ BlurEffectConfig::BlurEffectConfig(QObject *parent, const KPluginMetaData &data)
     ui.setupUi(widget());
     BlurConfig::instance("kwinrc");
     addConfig(BlurConfig::self(), widget());
-
-    QFile about(":/effects/better_blur_dx/kcm/about.html");
+    QFile about(":/effects/static_blur_dx/kcm/about.html");
     if (about.open(QIODevice::ReadOnly)) {
         const auto html = about.readAll()
             .replace("${version}", ABOUT_VERSION_STRING)
-            .replace("${repo}", "https://github.com/xarblu/kwin-effects-better-blur-dx");
+            .replace("${repo}", "https://github.com/xarblu/kwin-effects-static-blur-dx");
         ui.aboutText->setHtml(html);
     }
 
+    connect(ui.imagePicker, &QPushButton::clicked, this, [this] {
+        const auto path = QFileDialog::getOpenFileName(widget(), tr("Choose static blur image"), ui.kcfg_StaticImagePath->text());
+        if (!path.isEmpty()) ui.kcfg_StaticImagePath->setText(path);
+    });
+    auto validateImage = [this] {
+        const bool custom = ui.kcfg_BlitMode->currentIndex() == BlitMode::CUSTOM_IMAGE;
+        ui.kcfg_StaticImagePath->setEnabled(custom); ui.imagePicker->setEnabled(custom);
+        ui.imageStatus->setText(custom && loadStaticImage(ui.kcfg_StaticImagePath->text()).isNull()
+            ? tr("Choose a readable image. Blur is skipped while the image is unavailable.")
+            : tr("The image fills each screen with a centered crop. Apply reloads the file."));
+    };
+    connect(ui.kcfg_StaticImagePath, &QLineEdit::textChanged, this, validateImage);
+    connect(ui.kcfg_BlitMode, &QComboBox::currentIndexChanged, this, validateImage);
+    validateImage();
     setupContextualHelp();
     setupSpinboxSliderSync();
     setupConstraints();
-
     connect(ui.kcfg_RefractionMode, &QComboBox::currentIndexChanged, this, &BlurEffectConfig::slotRefractionModeChanged);
     slotRefractionModeChanged(ui.kcfg_RefractionMode->currentIndex());
 }
 
 BlurEffectConfig::~BlurEffectConfig() {}
-
 void BlurEffectConfig::setContextualHelp(
     KContextualHelpButton *const contextualHelpButton,
     const QString &text,
@@ -60,7 +72,6 @@ void BlurEffectConfig::setContextualHelp(
         }
     }
 }
-
 void BlurEffectConfig::setupContextualHelp() {
     setContextualHelp(
         ui.windowClassesContextualHelp,
@@ -69,17 +80,14 @@ void BlurEffectConfig::setupContextualHelp() {
         QStringLiteral("<p><strong>Exact match:</strong><br>") +
         QStringLiteral("By default window classes are matched exactly.<br>") +
         QStringLiteral("Example: <code>org.kde.dolphin</code> matches only Dolphin.</p>") +
-
         QStringLiteral("<p><strong>Regex match:</strong><br>") +
         QStringLiteral("If wrapped with <code>/</code> window classes are matched by Perl compatible regular expression.<br>") +
         QStringLiteral("Example: <code>/^org\\.kde\\..*/</code> matches all KDE applications.</p>") +
-
         QStringLiteral("<p><strong>Empty match:</strong><br>") +
         QStringLiteral("Use the special value <code>$blank</code> to match empty window classes.</p>"),
         ui.windowClassesBriefDescription
     );
 }
-
 void BlurEffectConfig::setupSpinboxSliderSync() {
     // Blur Strength
     ui.spinboxBlurStrength->setValue(ui.kcfg_BlurStrength->value());
@@ -87,28 +95,24 @@ void BlurEffectConfig::setupSpinboxSliderSync() {
             if (ui.spinboxBlurStrength->value() != value) ui.spinboxBlurStrength->setValue(value); });
     connect(ui.spinboxBlurStrength, &QSpinBox::valueChanged, this, [this](int value) {
             if (ui.kcfg_BlurStrength->value() != value) ui.kcfg_BlurStrength->setValue(value); });
-
     // Noise Strength
     ui.spinboxNoiseStrength->setValue(ui.kcfg_NoiseStrength->value());
     connect(ui.kcfg_NoiseStrength, &QSlider::valueChanged, this, [this](int value) {
             if (ui.spinboxNoiseStrength->value() != value) ui.spinboxNoiseStrength->setValue(value); });
     connect(ui.spinboxNoiseStrength, &QSpinBox::valueChanged, this, [this](int value) {
             if (ui.kcfg_NoiseStrength->value() != value) ui.kcfg_NoiseStrength->setValue(value); });
-
     // Brightness
     ui.spinboxBrightness->setValue(ui.kcfg_Brightness->value());
     connect(ui.kcfg_Brightness, &QSlider::valueChanged, this, [this](int value) {
             if (ui.spinboxBrightness->value() != value) ui.spinboxBrightness->setValue(value); });
     connect(ui.spinboxBrightness, &QSpinBox::valueChanged, this, [this](int value) {
             if (ui.kcfg_Brightness->value() != value) ui.kcfg_Brightness->setValue(value); });
-
     // Saturation
     ui.spinboxSaturation->setValue(ui.kcfg_Saturation->value());
     connect(ui.kcfg_Saturation, &QSlider::valueChanged, this, [this](int value) {
             if (ui.spinboxSaturation->value() != value) ui.spinboxSaturation->setValue(value); });
     connect(ui.spinboxSaturation, &QSpinBox::valueChanged, this, [this](int value) {
             if (ui.kcfg_Saturation->value() != value) ui.kcfg_Saturation->setValue(value); });
-
     // Contrast
     ui.spinboxContrast->setValue(ui.kcfg_Contrast->value());
     connect(ui.kcfg_Contrast, &QSlider::valueChanged, this, [this](int value) {
@@ -116,7 +120,6 @@ void BlurEffectConfig::setupSpinboxSliderSync() {
     connect(ui.spinboxContrast, &QSpinBox::valueChanged, this, [this](int value) {
             if (ui.kcfg_Contrast->value() != value) ui.kcfg_Contrast->setValue(value); });
 }
-
 void BlurEffectConfig::setupConstraints() {
 #if defined(BBDX_X11)
     /**
@@ -124,16 +127,15 @@ void BlurEffectConfig::setupConstraints() {
      */
     ui.kcfg_BlitMode->setEnabled(false);
 #endif
-
     // wallpaper mode expects the cache
     // and doesn't care about the flush interval
     auto slotBlitModeChanged = [this](int index) {
-        switch (static_cast<BBDX::BlitMode>(index)) {
-            case BBDX::BlitMode::WALLPAPER:
+        switch (static_cast<SBDX::BlitMode>(index)) {
+            case SBDX::BlitMode::WALLPAPER:
+            case SBDX::BlitMode::CUSTOM_IMAGE:
                 ui.kcfg_BlurCacheIgnore->setEnabled(false);
                 ui.kcfg_BlurCacheRateLimit->setEnabled(false);
                 break;
-
             default:
                 ui.kcfg_BlurCacheIgnore->setEnabled(true);
                 ui.kcfg_BlurCacheRateLimit->setEnabled(true);
@@ -148,7 +150,6 @@ void BlurEffectConfig::slotRefractionModeChanged(int index) {
     // 1 = concave
     // TODO: make this an enum
     const bool concave{index == 1};
-
     // Edge behaviour is not relevant for concave mode
     if (ui.kcfg_RefractionTextureRepeatMode) {
         ui.kcfg_RefractionTextureRepeatMode->setEnabled(!concave);
@@ -156,7 +157,6 @@ void BlurEffectConfig::slotRefractionModeChanged(int index) {
     if (ui.labelRefractionTextureRepeatMode) {
         ui.labelRefractionTextureRepeatMode->setEnabled(!concave);
     }
-
     // Corner radius is only relevant for Concave as Basic breaks with low values
     if (ui.kcfg_RefractionCornerRadius) {
         ui.kcfg_RefractionCornerRadius->setEnabled(concave);
@@ -171,7 +171,6 @@ void BlurEffectConfig::slotRefractionModeChanged(int index) {
         ui.sliderLabelRefractionCornerRadiusRound->setEnabled(concave);
     }
 }
-
 void BlurEffectConfig::save() {
     KCModule::save();
 
@@ -179,11 +178,10 @@ void BlurEffectConfig::save() {
                                          QStringLiteral("/Effects"),
                                          QDBusConnection::sessionBus());
 
-    interface.reconfigureEffect(QStringLiteral("better_blur_dx"));
+    interface.reconfigureEffect(QStringLiteral("static_blur_dx"));
 }
 
-} // namespace BBDX
-
+} // namespace SBDX
 #include "blur_config.moc"
 
 #include "moc_blur_config.cpp"

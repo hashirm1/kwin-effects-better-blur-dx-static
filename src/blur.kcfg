@@ -4,7 +4,7 @@
     xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
     http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
     <kcfgfile arg="true"/>
-    <group name="Effect-better-blur-dx">
+    <group name="Effect-static-blur-dx">
         <!-- General -->
         <entry name="BlurStrength" type="Int">
             <default>15</default>
@@ -70,11 +70,13 @@ class3</default>
         <entry name="RefractionTextureRepeatMode" type="Int">
             <default>0</default>
         </entry>
+        <entry name="StaticImagePath" type="String"><default></default></entry>
         <!-- Performance -->
         <entry name="BlitMode" type="Enum">
-            <choices name="BBDX::BlitMode">
+            <choices name="SBDX::BlitMode">
                 <choice name="RENDER_TARGET"/>
                 <choice name="WALLPAPER"/>
+                <choice name="CUSTOM_IMAGE"/>
             </choices>
             <default>BlitMode::RENDER_TARGET</default>
         </entry>

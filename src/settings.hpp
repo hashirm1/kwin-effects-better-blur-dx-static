@@ -4,7 +4,7 @@
  * File containing setting enums
  */
 
-namespace BBDX {
+namespace SBDX {
 
 /**
  * Choose what to blit i.e.
@@ -20,6 +20,7 @@ enum BlitMode {
     // blit only the wallpaper
     // allowing for aggressive cache usage
     WALLPAPER,
+    CUSTOM_IMAGE,
 };
 
 }

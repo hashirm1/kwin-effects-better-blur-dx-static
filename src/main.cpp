@@ -6,7 +6,7 @@
 
 #include "blur.h"
 
-namespace BBDX {
+namespace SBDX {
 
 KWIN_EFFECT_FACTORY_SUPPORTED_ENABLED(BlurEffect,
                                       "metadata.json",
@@ -14,6 +14,6 @@ KWIN_EFFECT_FACTORY_SUPPORTED_ENABLED(BlurEffect,
                                       ,
                                       return BlurEffect::enabledByDefault();)
 
-} // namespace BBDX
+} // namespace SBDX
 
 #include "main.moc"

@@ -827,14 +827,15 @@
         <widget class="QComboBox" name="kcfg_BlitMode">
          <item>
           <property name="text">
-           <string>Full</string>
+           <string>Live background</string>
           </property>
          </item>
          <item>
           <property name="text">
-           <string>Wallpaper [EXPERIMENTAL]</string>
+           <string>Desktop wallpaper [experimental]</string>
           </property>
          </item>
+         <item><property name="text"><string>Custom image</string></property></item>
         </widget>
        </item>
        <item row="1" column="0">
@@ -864,7 +865,11 @@
          </property>
         </widget>
        </item>
-      </layout>
+      <item row="3" column="0"><widget class="QLabel" name="imageLabel"><property name="text"><string>Custom image:</string></property></widget></item>
+<item row="3" column="1"><widget class="QLineEdit" name="kcfg_StaticImagePath"/></item>
+<item row="4" column="1"><widget class="QPushButton" name="imagePicker"><property name="text"><string>Choose image…</string></property></widget></item>
+<item row="5" column="1"><widget class="QLabel" name="imageStatus"><property name="wordWrap"><bool>true</bool></property></widget></item>
+</layout>
      </widget>
      <widget class="QWidget">
       <attribute name="title">

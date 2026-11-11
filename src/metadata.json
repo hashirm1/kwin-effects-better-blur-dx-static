@@ -18,10 +18,10 @@
             }
         ],
         "Category": "Appearance",
-        "Description": "Fork of the KWin Blur effect for KDE Plasma 6 with force blur and more",
+        "Description": "Blur using a custom static image, desktop wallpaper, or live background",
         "EnabledByDefault": false,
         "License": "GPL",
-        "Name": "Better Blur DX"
+        "Name": "Static Blur DX"
     },
-    "X-KDE-ConfigModule": "kwin_better_blur_dx_config"
+    "X-KDE-ConfigModule": "kwin_static_blur_dx_config"
 }

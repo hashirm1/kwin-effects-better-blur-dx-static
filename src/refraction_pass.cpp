@@ -8,27 +8,24 @@
 
 #include <QLoggingCategory>
 #include <QRect>
-
 #include <algorithm>
 
-Q_LOGGING_CATEGORY(REFRACTION_PASS, "kwin_effect_better_blur_dx.refraction_pass", QtInfoMsg)
+Q_LOGGING_CATEGORY(REFRACTION_PASS, "kwin_effect_static_blur_dx.refraction_pass", QtInfoMsg)
 
-std::unique_ptr<BBDX::RefractionPass> BBDX::RefractionPass::create() {
+std::unique_ptr<SBDX::RefractionPass> SBDX::RefractionPass::create() {
     // The vertex shaders should always be the one of the
     // respective contrast pass.
     // The refraction uses a modified version of
     // the contrast fragment shader.
 
     std::unique_ptr<RefractionPass> pass{new RefractionPass};
-
     pass->m_shader = KWin::ShaderManager::instance()->generateShaderFromFile(
         KWin::ShaderTrait::MapTexture,
-        BBDX::shaderFilePath(":/effects/better_blur_dx/shaders/vertex.vert"),
-        BBDX::shaderFilePath(":/effects/better_blur_dx/shaders/refraction.frag")
+        SBDX::shaderFilePath(":/effects/static_blur_dx/shaders/vertex.vert"),
+        SBDX::shaderFilePath(":/effects/static_blur_dx/shaders/refraction.frag")
     );
-
     if (!pass->m_shader) {
-        qCWarning(REFRACTION_PASS) << BBDX::LOG_PREFIX << "Failed to load refraction pass shader";
+        qCWarning(REFRACTION_PASS) << SBDX::LOG_PREFIX << "Failed to load refraction pass shader";
         return nullptr;
     } else {
         // contrast parameters
@@ -46,33 +43,29 @@ std::unique_ptr<BBDX::RefractionPass> BBDX::RefractionPass::create() {
         pass->m_refractionTextureRepeatModeLocation = pass->m_shader->uniformLocation("refractionTextureRepeatMode");
         pass->m_refractionModeLocation = pass->m_shader->uniformLocation("refractionMode");
     }
-
     return pass;
 }
 
-void BBDX::RefractionPass::reconfigure() {
-    auto config = BBDX::BlurConfig::self();
+void SBDX::RefractionPass::reconfigure() {
+    auto config = SBDX::BlurConfig::self();
 
     if (!config) {
-        qCWarning(REFRACTION_PASS) << BBDX::LOG_PREFIX
+        qCWarning(REFRACTION_PASS) << SBDX::LOG_PREFIX
                                    << "RefractionPass::reconfigure() called before BlurConfig::read()";
         return;
     }
 
     // mark enabled if strength > 0
     m_enabled = config->refractionStrength() > 0;
-
     // scaled up by 10.0
     constexpr double scaleEdgeSizePixels{10.0};
     m_edgeSizePixels = static_cast<double>(config->refractionEdgeSize()) * scaleEdgeSizePixels;
-
     // snapped to nearest step
     constexpr double maxCornerRadiusPixels{200.0};
     constexpr double steps{30.0};
     constexpr double stepSize{maxCornerRadiusPixels / steps}; // ~6.6667, matching step size from blur_config.ui
     const double snapped{std::round(static_cast<double>(config->refractionCornerRadius()) / stepSize) * stepSize};
     m_cornerRadiusPixels = snapped;
-
     // expects range 0.0-1.0
     // max value from blur_config.ui
     constexpr double maxStrength{30.0};
@@ -81,7 +74,6 @@ void BBDX::RefractionPass::reconfigure() {
     // XXX: why scaled down?
     constexpr double scaleNormalPow{0.5};
     m_normalPow = static_cast<double>(config->refractionNormalPow()) * scaleNormalPow;
-
     // expects range 0.0-1.0
     // max value from blur_config.ui
     constexpr double maxRGBFringing{30.0};
@@ -92,24 +84,22 @@ void BBDX::RefractionPass::reconfigure() {
     m_mode = config->refractionMode();
 }
 
-bool BBDX::RefractionPass::pushShader() const {
+bool SBDX::RefractionPass::pushShader() const {
     if (!enabled())
         return false;
 
     KWin::ShaderManager::instance()->pushShader(m_shader.get());
-
     return true;
 }
 
 
-bool BBDX::RefractionPass::setParameters(const QMatrix4x4 &projectionMatrix,
+bool SBDX::RefractionPass::setParameters(const QMatrix4x4 &projectionMatrix,
                                          const QMatrix4x4 &colorMatrix,
                                          const QVector2D &halfpixel,
                                          const float offset,
                                          const QRect &scaledBackgroundRect) const {
     if (!enabled())
         return false;
-
     // contrast parameters
     m_shader->setUniform(m_mvpMatrixLocation, projectionMatrix);
     m_shader->setUniform(m_colorMatrixLocation, colorMatrix);
@@ -128,6 +118,5 @@ bool BBDX::RefractionPass::setParameters(const QMatrix4x4 &projectionMatrix,
     m_shader->setUniform(m_refractionRGBFringingLocation, static_cast<float>(m_RGBFringing));
     m_shader->setUniform(m_refractionTextureRepeatModeLocation, m_textureRepeatMode);
     m_shader->setUniform(m_refractionModeLocation, m_mode);
-
     return true;
 }

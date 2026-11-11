@@ -7,7 +7,6 @@
 
 #include <chrono>
 #include <optional>
-
 #if KWIN_VERSION >= KWIN_VERSION_CODE(6, 5, 80)
 #  include <core/region.h>
 #endif
@@ -18,7 +17,7 @@ namespace KWin {
     class WindowPaintData;
 }
 
-namespace BBDX {
+namespace SBDX {
 
 class WindowManager;
 
@@ -39,7 +38,6 @@ public:
         Started,
         Ended
     };
-
     enum class BlurOrigin : unsigned int {
         RequestedContent = 1 << 0,
         RequestedFrame   = 1 << 1,
@@ -55,9 +53,8 @@ private:
     KWin::EffectWindow* m_effectwindow;
 
     // "cache" for whether this window should
-    // be force blurred - re-evaluated with BBDX::Window::reconfigure()
+    // be force blurred - re-evaluated with SBDX::Window::reconfigure()
     bool m_shouldForceBlur{false};
-
     // user config related attributes
     bool m_blurMenus{false};
     bool m_blurDocks{false};
@@ -70,7 +67,6 @@ private:
     // track whether this window requested a blur region
     // and where it came from
     unsigned int m_blurOriginMask{0};
-
     // track mazimized state
     MaximizedState m_maximizedState{MaximizedState::Unknown};
     bool m_restoresMaximized{false};
@@ -82,13 +78,11 @@ private:
 
     // track whether window's blur region is currently fully covered
     bool m_isBlurFullyCovered{false};
-
     // track whether window should be blurred even
     // when PAINT_WINDOW_TRANSFORMED is set
     bool m_shouldBlurWhileTransformed{false};
     TransformState m_blurWhileTransformedTransitionState{TransformState::None};
     std::chrono::steady_clock::time_point m_blurWhileTransformedTransitionStart;
-
     // window opacity at last reconfigure() call
     // used to decide whether opacity should affect blur
     // in getEffectiveBlurOpacity()
@@ -105,7 +99,6 @@ private:
      * Whether this window should be force blurred
      */
     bool shouldForceBlur() const;
-
     void refreshMaximizedState();
     void updateForceBlurRegion();
     void triggerBlurRegionUpdate() const;
@@ -119,7 +112,6 @@ private:
     bool blurOriginIs(BlurOrigin origin) const;
     QString blurOriginToString() const;
     QString maximizedStateToString() const;
-
 public Q_SLOTS:
     void slotMinimizedChanged();
     void slotWindowFullScreenChanged();
@@ -130,14 +122,12 @@ public Q_SLOTS:
 
 public:
     explicit Window(WindowManager *wm, KWin::EffectWindow *w);
-
     /**
      * setters
      */
     void setIsTransformed(bool toggle);
     void setMaximizedState(MaximizedState state);
     void setIsBlurFullyCovered(bool toggle);
-
     /**
      * getters
      */
@@ -151,7 +141,6 @@ public:
      * reconfigure hook
      */
     void reconfigure();
-
     /**
      * Get the final blur region written into
      * the provided content/frame references
@@ -160,13 +149,12 @@ public:
      * m_blurOriginMask appropriately, else writes the current force blur region
      */
     void getFinalBlurRegion(std::optional<KWin::RegionF> &content, std::optional<KWin::RegionF> &frame);
-
     /**
      * Get the effective border radius
      *
      * For blur-requested windows this respects their radius.
      * Otherwise the configured radius is used.
-     * 
+     *
      * If the window is fullscreen/maximized the radius is always 0.
      */
     KWin::BorderRadius getEffectiveBorderRadius();
@@ -175,7 +163,6 @@ public:
      * Get effective blur opacity
      */
     qreal getEffectiveBlurOpacity(KWin::WindowPaintData &data);
-
     /**
      * Check if this window (likely) is a Plasma surface that should
      * get special treatment like non-rounded corners
@@ -183,7 +170,7 @@ public:
     bool isPlasmaSurface() const;
 
     /**
-     * Whether this window is a menu (or menu adjacent) in BBDX terms
+     * Whether this window is a menu (or menu adjacent) in SBDX terms
      */
     bool isMenu() const;
 
@@ -191,10 +178,9 @@ public:
      * Whether this window is blurred in any way (requested or forced)
      */
     bool isBlurred() const;
-
     /**
      * operator to facilitate logging of windows
      */
     friend QDebug operator<<(QDebug &debug, const Window &window);
 };
-} // namespace BBDX
+} // namespace SBDX
